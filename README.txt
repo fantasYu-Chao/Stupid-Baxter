@@ -1,10 +1,12 @@
 # Stupid-Baxter
 #
-# This project is designed cooperatively by Eugenio, Enrique, Chao, Penelope and Teng to fulfill the pick and place task on a Baxter robot.
+# This project is designed cooperatively by Eugenio, Enrique, Chao, Penelope and Teng 
+# to fulfill the pick and place task on a Baxter robot.
+#
 # This software can only be run in a computer runing Linux and with the pakages installed.
 # To run the pick and place program using Baxter and the Vicon system, the flowing steps have to be followed. 
 #
-# First make sure that the connection between the Vicon Host computer and Baxter Host computer is established.
+# First ensure that the connection between the Vicon Host computer and Baxter Host computer is established.
 #
 # To do this, go to the connection panel on the upper right corner.
 #
