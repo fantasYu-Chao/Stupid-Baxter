@@ -1,0 +1,267 @@
+import roslib
+import sys
+import rospy
+import numpy as np
+import pdb
+from matplotlib import pyplot as plt
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from geometry_msgs.msg import TransformStamped
+import os
+import argparse
+import struct
+
+# baxter_interface - Baxter Python API
+import baxter_interface
+
+#initialize noe
+rospy.init_node('Pick_Place')
+
+
+
+from geometry_msgs.msg import (
+    PoseStamped,
+    Pose,
+    Point,
+    Quaternion,
+)
+from std_msgs.msg import Header
+
+from baxter_core_msgs.srv import (
+    SolvePositionIK,
+    SolvePositionIKRequest,
+)
+
+
+#define subscriber node
+#def sub():
+	#subNode = rospy.Subscriber("/vicon/Bin/Bin", TransformStamped, callback_groundtruth)
+	#rospy.rostime.set_rostime_initialized( True )
+#
+#wx,wy,wz,qx,qy,qz,qw=0
+
+#def callback_groundtruth(data):
+#	wx = data.transform.translation.x
+#	wy = data.transform.translation.y
+##	wz = data.transform.translation.z
+#	qx = data.transform.rotation.x
+#	qy = data.transform.rotation.y
+#	qz = data.transform.rotation.z
+#	qw = data.transform.rotation.w
+
+
+
+#hight of the table in respect to baxter
+h=0.16
+
+orient=[
+          0.6995856718498753,
+          0.006060723615985742,
+          0.7140665212801541,
+          -0.025537395295301586,
+       ]
+
+rarm = baxter_interface.Limb('right')
+rgripper = baxter_interface.Gripper('right')
+rgripper.calibrate()
+
+larm = baxter_interface.Limb('left')
+lgripper = baxter_interface.Gripper('left')
+lgripper.calibrate()            
+
+def get_angles(limb,X):
+    ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
+    iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
+    ikreq = SolvePositionIKRequest()
+    hdr = Header(stamp=rospy.Time.now(), frame_id='base')
+    #quaternion= tf2_ros.transformations.quaternion_from_euler(0,0,0)
+    poses = {
+        'right': PoseStamped(
+            header=hdr,
+            pose=Pose(
+                position=Point(
+                    x=X[0],
+                    y=X[1],
+                    z=h,
+                ),
+                orientation=Quaternion(
+                    x=orient[0],
+                    y=orient[1],
+                    z=orient[2],
+                    w=orient[3],
+                ),
+            ),
+        ),
+    }
+				
+    ikreq.pose_stamp.append(poses[limb])
+    try:
+        rospy.wait_for_service(ns, 5.0)
+        resp = iksvc(ikreq)
+    except (rospy.ServiceException, rospy.ROSException), e:
+        rospy.logerr("Service call failed: %s" % (e,))
+        return 1
+
+    # Check if result valid, and type of seed ultimately used to get solution
+    # convert rospy's string representation of uint8[]'s to int's
+    resp_seeds = struct.unpack('<%dB' % len(resp.result_type),
+                               resp.result_type)
+    if (resp_seeds[0] != resp.RESULT_INVALID):
+        seed_str = {
+                    ikreq.SEED_USER: 'User Provided Seed',
+                    ikreq.SEED_CURRENT: 'Current Joint Angles',
+                    ikreq.SEED_NS_MAP: 'Nullspace Setpoints',
+                   }.get(resp_seeds[0], 'None')
+        print("SUCCESS - Valid Joint Solution Found from Seed Type: %s" %
+              (seed_str,))
+        # Format solution into Limb API-compatible dictionary
+        limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+        #print "\nIK Joint Solution:\n", limb_joints
+        #print "------------------"
+        #print "Response Message:\n", resp
+	# initialize our ROS node, registering it with the Master
+    	#rospy.init_node('Hello_Bax')
+
+   	# create an instance of baxter_interface's Limb class
+    	arm = baxter_interface.Limb(limb)
+
+    	# get the right limb's current joint angles
+    	angles = rarm.joint_angles()
+        print angles
+    	# reassign new joint angles (all zeros) which we will later command to the limb
+    	angles['right_s0']= resp.joints[0].position[0]
+    	angles['right_s1']= resp.joints[0].position[1]
+    	angles['right_e0']= resp.joints[0].position[2]
+    	angles['right_e1']= resp.joints[0].position[3]
+    	angles['right_w0']= resp.joints[0].position[4]
+    	angles['right_w1']= resp.joints[0].position[5]
+    	angles['right_w2']= resp.joints[0].position[6]
+
+    	# print the joint angle command
+    	return angles
+
+    else:
+        print("INVALID POSE - No Valid Joint Solution Found.")
+
+    return 0
+
+
+# Moves baxters arm to a default position
+def defPos(limb):
+    
+    angles = rarm.joint_angles()
+    angles['right_s0']=0.233
+    angles['right_s1']=-1.3
+    angles['right_e0']=0.74
+    angles['right_e1']=1.54
+    angles['right_w0']=0.1944
+    angles['right_w1']=0
+    angles['right_w2']=3
+
+    if limb =='right':
+        rarm.move_to_joint_positions(angles)
+
+    else: 
+        larm.move_to_joint_positions(angles)
+
+    return
+
+def mycalibrate():
+    #Baxter's Arm Coordinates for calibration.
+    bac=[0.6414522516609436,-0.6506141373739922]
+    point=rarm.endpoint_pose()
+    print point
+    #ADD Get joint angles
+    angles = get_angles('right',bac)
+    print angles
+    #Move to possition bac.
+    rarm.move_to_joint_positions(angles)
+
+    print 'To calibrate, place the object in Baxters right gripper.'
+    # Wait for the object to be placed on baxter's gripper. 
+    raw_input("Press Enter when ready...")
+
+    # Vicon's Object Cordinates on baxters arm for calibration. Vicon works in
+    # centimiters and baxter is meters. Vicon coordinates are changed to meters.
+
+    voc=[89.2011,16.3119] #replace with coordinates read from vicon for SPONGE
+    voc = [ -1*voc[0], -1*voc[1]]
+    voc = [x / 100. for x in voc]
+
+    # rel is a list that has to be substracted to the vicon coordinates to tranform
+    # from Vicon coordinates to Baxter coordinates.
+    r = [a - b for a, b in zip(voc, bac)]
+
+    return r
+
+# Moves Baxters arm to XXX cm from the object. Then it reaches it and closes the
+# gripper. Calibraton is needed before executing this function.
+def grab(limb,r):
+
+    voc=[ 68.3223, 10.7493] #replace with coordinates read from vicon SPONGE
+    voc = [ -1*voc[0], -1*voc[1]]
+    voc = [x / 100. for x in voc]
+    boc2 = [a - b for a, b in zip(voc, r)]
+    boc1 = [boc2[0]-0.1,boc2[1]]
+    print boc2
+    #ADD Get joint angles
+    angles1 = get_angles(limb,boc1)
+    angles2 = get_angles(limb,boc2)
+
+    if limb =='right':
+        #Move to possition boc1.
+        rarm.move_to_joint_positions(angles1)
+        #Add move to possition boc2.
+        rarm.move_to_joint_positions(angles2)
+        #close gripper
+        rgripper.close()
+    
+    else: 
+        #Move to possition boc1.
+        larm.move_to_joint_positions(angles1)
+        #Add move to possition boc2.
+        rlarm.move_to_joint_positions(angles2)
+        #close gripper
+        rgripper.close()
+    
+    print boc1, boc2
+    return
+    
+def toBin(limb, r):
+    vbc=[73.4,-17.2] #replace with coordinates read from vicon BIN
+    vbc = [x / 100. for x in vbc]
+    vbc = [ -1*vbc[0], -1*vbc[1]]
+    print 
+    bbc = [a - b for a, b in zip(vbc, r)]
+    
+    #ADD Get joint angles
+    angles = get_angles(limb,bbc)
+
+    #Move to possition bbc.
+    if limb =='right':
+        rarm.move_to_joint_positions(angles)
+        rgripper.open()
+    else: 
+        larm.move_to_joint_positions(angles)
+        lgripper.open()
+    
+    print bbc
+    return 
+
+
+
+
+rel=[]
+rel = mycalibrate()
+defPos('right') 
+grab('right',rel)
+toBin('right',rel)
+ 
+
+
+
+
+
+    
+
+
