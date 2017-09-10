@@ -11,7 +11,6 @@
 #
 # To do this, go to the connection panel on the upper right corner.
 #
-#
 # If the vicon connection does not appears, we have to set up the network.
 # 
 # In Ubuntu, go to settings then Network to open the Network preference window.
