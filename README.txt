@@ -33,7 +33,7 @@
 # Move to the catkin workspace, connect to Baxter and launch the Vicon Bridge.
 # $ cd catkin_ws 
 # $ . baxter.sh
-# $roslaunch vicon_bridge vicon.launch
+# $ roslaunch vicon_bridge vicon.launch
 #
 # Now the Vicon Bridge should be publishing the data from Vicon's models.
 #
