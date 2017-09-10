@@ -4,7 +4,7 @@
 # This software can only be run in a computer runing Linux and with the pakages installed.
 # To run the pick and place program using Baxter and the Vicon system, the flowing steps have to be followed. 
 #
-# First we have to make sure that the connection between the Vicon Host computer and Baxter Host computer is established.
+# First make sure that the connection between the Vicon Host computer and Baxter Host computer is established.
 #
 # To do this, go to the connection panel on the upper right corner.
 #
