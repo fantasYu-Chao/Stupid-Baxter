@@ -1,7 +1,8 @@
 # Stupid-Baxter
 #
 # This project is designed cooperatively by Eugenio, Enrique, Chao, Penelope and Teng 
-# to fulfill the pick and place task on a Baxter robot.
+# to fulfill the pick and place task on a Baxter robot. The main contribution on code are in
+# path: catkin_ws/src/vicon_bridge/src/
 #
 # This software can only be run in a computer runing Linux and with the pakages installed.
 # To run the pick and place program using Baxter and the Vicon system, flowing steps have to be followed. 
